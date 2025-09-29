@@ -1,0 +1,33 @@
+github:
+  # GitHub Personal Access Token (필수)
+  # GitHub → Settings → Developer settings → Personal access tokens → Generate new token
+  # 필요한 권한: repo (private repo 접근시), read:org
+  token: "your_github_token_here"
+
+  # 조회할 조직 목록
+  organizations: ["your_organization_name"]
+
+  # 커밋 필터링용 사용자명 목록
+  usernames: ["your_username", "teammate1", "teammate2"]
+
+# 브랜치 선택 전략
+branch_strategy:
+  # 모드: "all", "specific", "priority"
+  # all: 모든 존재 브랜치에서 수집 (중복 허용)
+  # specific: 지정된 브랜치들에서만 수집
+  # priority: 우선순위 순서로 첫 번째 존재 브랜치만 선택 (중복 제거)
+  mode: "priority"
+
+  # specific/priority 모드용 브랜치 목록
+  # priority 모드: 첫 번째로 존재하는 브랜치만 선택
+  # specific 모드: 나열된 모든 브랜치에서 수집
+  branches: ["main", "master", "develop"]
+
+# 조회 기간 설정
+date_range:
+  # 시작 날짜 (YYYY-MM-DD 형식, 빈값이면 어제부터)
+  # 어제가 주말이면 금요일부터 조회할지 물어봄
+  from: ""
+
+  # 종료 날짜 (YYYY-MM-DD 형식, 빈값이면 지금까지)
+  to: ""
