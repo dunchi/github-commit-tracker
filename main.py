@@ -60,12 +60,11 @@ class CommitFormatter:
                             body_lines.append(clean_line)
 
                 # Format title as plain text (no markdown link)
-                lines.append(f"{i}.")
-                lines.append(title)
+                lines.append(f"- {title}")
 
                 # Add cleaned body items
-                for body_line in body_lines:
-                    lines.append(body_line)
+                for idx, body_line in enumerate(body_lines, 1):
+                    lines.append(f"{idx}. {body_line}")
 
                 lines.append("")  # Empty line after each commit
 
