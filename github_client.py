@@ -78,7 +78,9 @@ class GitHubCommitTracker:
 
             for repo in repositories:
                 print(f"  Processing repository: {repo.full_name}")
-                target_branches = self._get_target_branches(repo, branch_strategy)
+                # Get repo-specific branch strategy
+                repo_strategy = self._get_repo_specific_strategy(repo.full_name, branch_strategy)
+                target_branches = self._get_target_branches(repo, repo_strategy)
                 print(f"    Target branches: {target_branches}")
 
                 for branch in target_branches:
@@ -87,6 +89,28 @@ class GitHubCommitTracker:
                     all_commits.extend(branch_commits)
 
         return all_commits
+
+    def _get_repo_specific_strategy(self, repo_full_name: str, branch_strategy: Dict[str, Any]) -> Dict[str, Any]:
+        """Get repository-specific branch strategy
+
+        Args:
+            repo_full_name: Full repository name (organization/repository)
+            branch_strategy: Default branch strategy with optional overrides
+
+        Returns:
+            Branch strategy for the specific repository
+        """
+        overrides = branch_strategy.get('overrides', {})
+
+        # Check if there's a repo-specific override
+        if repo_full_name in overrides:
+            return overrides[repo_full_name]
+
+        # Return default strategy (without overrides key)
+        return {
+            'mode': branch_strategy.get('mode'),
+            'branches': branch_strategy.get('branches', [])
+        }
 
     def _get_target_branches(self, repo: Repository.Repository, branch_strategy: Dict[str, Any]) -> List[str]:
         """Get target branches based on strategy"""

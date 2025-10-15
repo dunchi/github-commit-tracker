@@ -23,6 +23,16 @@ branch_strategy:
   # specific 모드: 나열된 모든 브랜치에서 수집
   branches: ["main", "master", "develop"]
 
+  # 레포지토리별 브랜치 전략 오버라이드 (선택사항)
+  # 특정 레포지토리에 대해 다른 브랜치 전략을 적용하고 싶을 때 사용
+  # 레포지토리명은 반드시 "organization/repository" 전체 형식으로 명시
+  # overrides:
+  #   "your_organization/repo-name-1":
+  #     mode: "specific"
+  #     branches: ["release", "hotfix"]
+  #   "your_organization/repo-name-2":
+  #     mode: "all"
+
 # 조회 기간 설정
 date_range:
   # 시작 날짜 (YYYY-MM-DD 형식, 빈값이면 어제부터)

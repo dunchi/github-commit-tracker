@@ -77,6 +77,28 @@ class ConfigParser:
             if not branches or not isinstance(branches, list):
                 raise ConfigError(f"branch_strategy.branches is required for mode '{mode}' and must be a list")
 
+        # Validate branch_strategy.overrides section (optional)
+        overrides = branch_strategy.get('overrides', {})
+        if overrides:
+            if not isinstance(overrides, dict):
+                raise ConfigError("branch_strategy.overrides must be a dictionary")
+
+            for repo_name, repo_strategy in overrides.items():
+                # Validate repo name format (org/repo)
+                if '/' not in repo_name:
+                    raise ConfigError(f"Invalid repository name in overrides: '{repo_name}'. Must be in 'organization/repository' format")
+
+                # Validate mode
+                repo_mode = repo_strategy.get('mode')
+                if repo_mode not in ['all', 'specific', 'priority']:
+                    raise ConfigError(f"Invalid mode for repository '{repo_name}': '{repo_mode}'. Must be one of: 'all', 'specific', 'priority'")
+
+                # Validate branches if mode is specific or priority
+                if repo_mode in ['specific', 'priority']:
+                    repo_branches = repo_strategy.get('branches', [])
+                    if not repo_branches or not isinstance(repo_branches, list):
+                        raise ConfigError(f"branch_strategy.overrides['{repo_name}'].branches is required for mode '{repo_mode}' and must be a list")
+
         # Validate date_range section (optional)
         date_range = self.config.get('date_range', {})
         if date_range:
@@ -109,9 +131,34 @@ class ConfigParser:
         github_config = self.get_github_config()
         return github_config.get('usernames', [])
 
-    def get_branch_strategy(self) -> Dict[str, Any]:
-        """Get branch strategy configuration"""
-        return self.config.get('branch_strategy', {})
+    def get_branch_strategy(self, repo_full_name: Optional[str] = None) -> Dict[str, Any]:
+        """Get branch strategy configuration for a specific repository
+
+        Args:
+            repo_full_name: Full repository name (organization/repository).
+                          If None, returns the default strategy.
+                          If specified and exists in overrides, returns the override strategy.
+                          If specified but not in overrides, returns the default strategy.
+
+        Returns:
+            Branch strategy configuration
+        """
+        branch_strategy = self.config.get('branch_strategy', {})
+
+        # If no repo specified, return default strategy
+        if not repo_full_name:
+            return branch_strategy
+
+        # Check for repo-specific override
+        overrides = branch_strategy.get('overrides', {})
+        if repo_full_name in overrides:
+            return overrides[repo_full_name]
+
+        # Return default strategy (without overrides key)
+        return {
+            'mode': branch_strategy.get('mode'),
+            'branches': branch_strategy.get('branches', [])
+        }
 
     def get_date_range(self, dry_run: bool = False) -> Dict[str, Optional[str]]:
         """Get date range configuration with defaults"""
