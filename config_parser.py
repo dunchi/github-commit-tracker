@@ -112,8 +112,15 @@ class ConfigParser:
                 self._validate_date_format(to_date, 'to')
 
     def _validate_date_format(self, date_str: str, field_name: str):
-        """Validate date format (YYYY-MM-DD or YYYY-MM-DD HH:MM)"""
-        # Try YYYY-MM-DD HH:MM format first
+        """Validate date format (YYYY-MM-DD, YYYY-MM-DD HH:MM, or HH:MM)"""
+        # Try HH:MM format first
+        try:
+            datetime.strptime(date_str, '%H:%M')
+            return
+        except ValueError:
+            pass
+
+        # Try YYYY-MM-DD HH:MM format
         try:
             datetime.strptime(date_str, '%Y-%m-%d %H:%M')
             return
@@ -125,7 +132,7 @@ class ConfigParser:
             datetime.strptime(date_str, '%Y-%m-%d')
             return
         except ValueError:
-            raise ConfigError(f"Invalid {field_name} date format: {date_str}. Use YYYY-MM-DD or YYYY-MM-DD HH:MM format")
+            raise ConfigError(f"Invalid {field_name} date format: {date_str}. Use YYYY-MM-DD, YYYY-MM-DD HH:MM, or HH:MM format")
 
     def get_github_config(self) -> Dict[str, Any]:
         """Get GitHub configuration"""
@@ -191,10 +198,28 @@ class ConfigParser:
             yesterday = datetime.now() - timedelta(days=1)
             from_date = self._get_start_date_with_weekend_check(yesterday, dry_run)
 
+        # Process HH:MM format for from_date (use yesterday's date)
+        if from_date and self._is_time_only_format(from_date):
+            yesterday = datetime.now() - timedelta(days=1)
+            from_date = f"{yesterday.strftime('%Y-%m-%d')} {from_date}"
+
+        # Process HH:MM format for to_date (use today's date)
+        if to_date and self._is_time_only_format(to_date):
+            today = datetime.now()
+            to_date = f"{today.strftime('%Y-%m-%d')} {to_date}"
+
         return {
             'from': from_date if from_date else None,
             'to': to_date if to_date else None
         }
+
+    def _is_time_only_format(self, date_str: str) -> bool:
+        """Check if the string is in HH:MM format"""
+        try:
+            datetime.strptime(date_str, '%H:%M')
+            return True
+        except ValueError:
+            return False
 
     def _get_start_date_with_weekend_check(self, yesterday: datetime, dry_run: bool = False) -> str:
         """Check if yesterday was weekend and ask user for preference"""
