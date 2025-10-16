@@ -106,16 +106,26 @@ class ConfigParser:
             to_date = date_range.get('to')
 
             if from_date:
-                try:
-                    datetime.strptime(from_date, '%Y-%m-%d')
-                except ValueError:
-                    raise ConfigError(f"Invalid from date format: {from_date}. Use YYYY-MM-DD format")
+                self._validate_date_format(from_date, 'from')
 
             if to_date:
-                try:
-                    datetime.strptime(to_date, '%Y-%m-%d')
-                except ValueError:
-                    raise ConfigError(f"Invalid to date format: {to_date}. Use YYYY-MM-DD format")
+                self._validate_date_format(to_date, 'to')
+
+    def _validate_date_format(self, date_str: str, field_name: str):
+        """Validate date format (YYYY-MM-DD or YYYY-MM-DD HH:MM)"""
+        # Try YYYY-MM-DD HH:MM format first
+        try:
+            datetime.strptime(date_str, '%Y-%m-%d %H:%M')
+            return
+        except ValueError:
+            pass
+
+        # Try YYYY-MM-DD format
+        try:
+            datetime.strptime(date_str, '%Y-%m-%d')
+            return
+        except ValueError:
+            raise ConfigError(f"Invalid {field_name} date format: {date_str}. Use YYYY-MM-DD or YYYY-MM-DD HH:MM format")
 
     def get_github_config(self) -> Dict[str, Any]:
         """Get GitHub configuration"""

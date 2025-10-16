@@ -15,8 +15,8 @@ class GitHubCommitTracker:
     def __init__(self, token: str, usernames: List[str], from_date: Optional[str] = None, to_date: Optional[str] = None):
         self.github = Github(token)
         self.usernames = usernames
-        self.from_date = self._parse_date(from_date) if from_date else None
-        self.to_date = self._parse_date(to_date) if to_date else None
+        self.from_date = self._parse_date_with_default(from_date, is_from=True) if from_date else None
+        self.to_date = self._parse_date_with_default(to_date, is_from=False) if to_date else None
 
     def get_organization_repositories(self, org_name: str) -> List[Repository.Repository]:
         """Get all repositories from an organization"""
@@ -150,8 +150,31 @@ class GitHubCommitTracker:
         return False
 
     def _parse_date(self, date_str: str) -> datetime:
-        """Parse date string to datetime object"""
-        return datetime.strptime(date_str, '%Y-%m-%d')
+        """Parse date string to datetime object (YYYY-MM-DD or YYYY-MM-DD HH:MM)"""
+        # Try YYYY-MM-DD HH:MM format first
+        try:
+            return datetime.strptime(date_str, '%Y-%m-%d %H:%M')
+        except ValueError:
+            pass
+
+        # Try YYYY-MM-DD format
+        try:
+            return datetime.strptime(date_str, '%Y-%m-%d')
+        except ValueError:
+            raise ValueError(f"Invalid date format: {date_str}. Use YYYY-MM-DD or YYYY-MM-DD HH:MM format")
+
+    def _parse_date_with_default(self, date_str: str, is_from: bool) -> datetime:
+        """Parse date string with default time (00:00 for from, 23:59 for to)"""
+        parsed = self._parse_date(date_str)
+        
+        # If time is not specified (00:00:00), apply defaults
+        if parsed.hour == 0 and parsed.minute == 0 and parsed.second == 0:
+            # Check if original string had time component
+            if ' ' not in date_str:  # No time specified
+                if not is_from:  # to_date should default to end of day
+                    return parsed.replace(hour=23, minute=59, second=59)
+        
+        return parsed
 
     def _extract_commit_data(self, commit: Commit, repo_name: str, branch_name: str) -> Dict[str, Any]:
         """Extract relevant data from a commit object"""
