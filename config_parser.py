@@ -198,10 +198,11 @@ class ConfigParser:
             yesterday = datetime.now() - timedelta(days=1)
             from_date = self._get_start_date_with_weekend_check(yesterday, dry_run)
 
-        # Process HH:MM format for from_date (use yesterday's date)
+        # Process HH:MM format for from_date (use yesterday's date with weekend check)
         if from_date and self._is_time_only_format(from_date):
             yesterday = datetime.now() - timedelta(days=1)
-            from_date = f"{yesterday.strftime('%Y-%m-%d')} {from_date}"
+            base_date = self._get_start_date_with_weekend_check(yesterday, dry_run)
+            from_date = f"{base_date} {from_date}"
 
         # Process HH:MM format for to_date (use today's date)
         if to_date and self._is_time_only_format(to_date):
