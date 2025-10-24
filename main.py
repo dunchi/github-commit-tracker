@@ -20,7 +20,7 @@ class CommitFormatter:
 
     @staticmethod
     def clean_commit_message_line(line: str) -> str:
-        """Remove pattern from commit message line: ^.*\([^)]+\):\s*"""
+        r"""Remove pattern from commit message line: ^.*\([^)]+\):\s*"""
         pattern = r'^.*\([^)]+\):\s*'
         return re.sub(pattern, '', line.strip())
 
