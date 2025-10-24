@@ -51,10 +51,32 @@ class ConfigParser:
         if not self.config:
             raise ConfigError("Empty configuration file")
 
-        # Validate GitHub section
+        # Check which mode is enabled
         github_config = self.config.get('github', {})
+        local_git_config = self.config.get('local_git', {})
+
+        github_enabled = github_config.get('enabled', False)
+        local_git_enabled = local_git_config.get('enabled', False)
+
+        # At least one mode must be enabled
+        if not github_enabled and not local_git_enabled:
+            raise ConfigError("Either github.enabled or local_git.enabled must be true")
+
+        # Only one mode can be enabled
+        if github_enabled and local_git_enabled:
+            raise ConfigError("Only one of github.enabled or local_git.enabled can be true")
+
+        # Validate based on enabled mode
+        if github_enabled:
+            self._validate_github_config(github_config)
+
+        if local_git_enabled:
+            self._validate_local_git_config(local_git_config)
+
+    def _validate_github_config(self, github_config: Dict[str, Any]):
+        """Validate GitHub configuration"""
         if not github_config.get('token'):
-            raise ConfigError("GitHub token is required")
+            raise ConfigError("GitHub token is required when github.enabled is true")
 
         if not github_config.get('organizations'):
             raise ConfigError("At least one organization must be specified")
@@ -63,7 +85,41 @@ class ConfigParser:
         if not usernames or not isinstance(usernames, list):
             raise ConfigError("At least one username must be specified in usernames array")
 
-        # Validate branch_strategy section
+        # Validate branch strategy for GitHub mode
+        self._validate_branch_strategy()
+
+    def _validate_local_git_config(self, local_git_config: Dict[str, Any]):
+        """Validate local Git configuration"""
+        base_paths = local_git_config.get('base_paths', [])
+        repositories = local_git_config.get('repositories', [])
+
+        # At least one of base_paths or repositories must be specified
+        if not base_paths and not repositories:
+            raise ConfigError("At least one of local_git.base_paths or local_git.repositories must be specified")
+
+        # Validate base_paths
+        if base_paths:
+            if not isinstance(base_paths, list):
+                raise ConfigError("local_git.base_paths must be a list")
+            for path in base_paths:
+                if not isinstance(path, str):
+                    raise ConfigError(f"Invalid base_path: {path}. Must be a string")
+
+        # Validate repositories
+        if repositories:
+            if not isinstance(repositories, list):
+                raise ConfigError("local_git.repositories must be a list")
+            for path in repositories:
+                if not isinstance(path, str):
+                    raise ConfigError(f"Invalid repository path: {path}. Must be a string")
+
+        # Validate usernames
+        usernames = local_git_config.get('usernames', [])
+        if not usernames or not isinstance(usernames, list):
+            raise ConfigError("At least one username must be specified in local_git.usernames array")
+
+    def _validate_branch_strategy(self):
+        """Validate branch_strategy section (GitHub mode only)"""
         branch_strategy = self.config.get('branch_strategy', {})
         if not branch_strategy:
             raise ConfigError("branch_strategy section is required")
@@ -99,18 +155,6 @@ class ConfigParser:
                     if not repo_branches or not isinstance(repo_branches, list):
                         raise ConfigError(f"branch_strategy.overrides['{repo_name}'].branches is required for mode '{repo_mode}' and must be a list")
 
-        # Validate date_range section (optional)
-        date_range = self.config.get('date_range', {})
-        if date_range:
-            from_date = date_range.get('from')
-            to_date = date_range.get('to')
-
-            if from_date:
-                self._validate_date_format(from_date, 'from')
-
-            if to_date:
-                self._validate_date_format(to_date, 'to')
-
     def _validate_date_format(self, date_str: str, field_name: str):
         """Validate date format (YYYY-MM-DD, YYYY-MM-DD HH:MM, or HH:MM)"""
         # Try HH:MM format first
@@ -134,9 +178,25 @@ class ConfigParser:
         except ValueError:
             raise ConfigError(f"Invalid {field_name} date format: {date_str}. Use YYYY-MM-DD, YYYY-MM-DD HH:MM, or HH:MM format")
 
+    def get_mode(self) -> str:
+        """Get current mode ('github' or 'local_git')"""
+        github_enabled = self.config.get('github', {}).get('enabled', False)
+        local_git_enabled = self.config.get('local_git', {}).get('enabled', False)
+
+        if github_enabled:
+            return 'github'
+        elif local_git_enabled:
+            return 'local_git'
+        else:
+            raise ConfigError("No mode enabled")
+
     def get_github_config(self) -> Dict[str, Any]:
         """Get GitHub configuration"""
         return self.config.get('github', {})
+
+    def get_local_git_config(self) -> Dict[str, Any]:
+        """Get local Git configuration"""
+        return self.config.get('local_git', {})
 
     def get_organizations(self) -> List[str]:
         """Get organizations list"""
@@ -144,9 +204,16 @@ class ConfigParser:
         return github_config.get('organizations', [])
 
     def get_usernames(self) -> List[str]:
-        """Get usernames list for filtering"""
-        github_config = self.get_github_config()
-        return github_config.get('usernames', [])
+        """Get usernames list for filtering (works for both modes)"""
+        mode = self.get_mode()
+        if mode == 'github':
+            github_config = self.get_github_config()
+            return github_config.get('usernames', [])
+        elif mode == 'local_git':
+            local_git_config = self.get_local_git_config()
+            return local_git_config.get('usernames', [])
+        else:
+            return []
 
     def get_branch_strategy(self, repo_full_name: Optional[str] = None) -> Dict[str, Any]:
         """Get branch strategy configuration for a specific repository

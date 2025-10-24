@@ -13,6 +13,7 @@ from typing import List, Dict, Any
 
 from config_parser import load_config, ConfigError
 from github_client import create_github_client
+from local_git_client import create_local_git_scanner
 
 
 class CommitFormatter:
@@ -123,33 +124,69 @@ def main():
         print(f"Loading configuration from: {args.config}")
         config = load_config(args.config)
 
-        github_config = config.get_github_config()
-        organizations = config.get_organizations()
+        # Get mode
+        mode = config.get_mode()
+        print(f"Mode: {mode}")
+
         usernames = config.get_usernames()
-        branch_strategy = config.get_branch_strategy()
         date_range = config.get_date_range(dry_run=args.dry_run)
 
-        print(f"Target organizations: {organizations}")
         print(f"Target usernames: {usernames}")
-        print(f"Branch strategy: {branch_strategy}")
         print(f"Date range: {date_range}")
 
-        if args.dry_run:
-            print("Dry run mode - configuration validation complete.")
-            return
+        if mode == 'github':
+            # GitHub mode
+            github_config = config.get_github_config()
+            organizations = config.get_organizations()
+            branch_strategy = config.get_branch_strategy()
 
-        # Create GitHub client
-        print("Connecting to GitHub API...")
-        github_client = create_github_client(
-            token=github_config['token'],
-            usernames=usernames,
-            from_date=date_range['from'],
-            to_date=date_range['to']
-        )
+            print(f"Target organizations: {organizations}")
+            print(f"Branch strategy: {branch_strategy}")
 
-        # Collect commits
-        print("Collecting commits...")
-        commits = github_client.get_commits_from_organizations(organizations, branch_strategy)
+            if args.dry_run:
+                print("Dry run mode - configuration validation complete.")
+                return
+
+            # Create GitHub client
+            print("Connecting to GitHub API...")
+            github_client = create_github_client(
+                token=github_config['token'],
+                usernames=usernames,
+                from_date=date_range['from'],
+                to_date=date_range['to']
+            )
+
+            # Collect commits
+            print("Collecting commits...")
+            commits = github_client.get_commits_from_organizations(organizations, branch_strategy)
+
+        elif mode == 'local_git':
+            # Local Git mode
+            local_git_config = config.get_local_git_config()
+            base_paths = local_git_config.get('base_paths', [])
+            repositories = local_git_config.get('repositories', [])
+
+            print(f"Base paths: {base_paths}")
+            print(f"Repositories: {repositories}")
+
+            if args.dry_run:
+                print("Dry run mode - configuration validation complete.")
+                return
+
+            # Create local Git scanner
+            print("Scanning local repositories...")
+            scanner = create_local_git_scanner(
+                usernames=usernames,
+                from_date=date_range['from'],
+                to_date=date_range['to']
+            )
+
+            # Collect commits
+            print("Collecting commits...")
+            commits = scanner.scan_repositories(base_paths=base_paths, repositories=repositories)
+
+        else:
+            raise ConfigError(f"Unknown mode: {mode}")
 
         if not commits:
             print("No commits found matching the criteria.")

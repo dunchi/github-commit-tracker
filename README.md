@@ -1,12 +1,15 @@
 # GitHub Commit Tracker
 
-GitHub 조직 내 레포지토리에서 커밋들을 수집하여 깔끔하게 정리해주는 도구입니다.
+GitHub 조직 또는 로컬 Git 레포지토리에서 커밋들을 수집하여 깔끔하게 정리해주는 도구입니다.
 
 ## ✨ 주요 기능
 
+- 🔄 **두 가지 모드**: GitHub API 또는 로컬 Git 레포지토리 스캔
 - 🏢 **조직 단위 수집**: GitHub 조직의 모든 레포지토리를 자동 스캔
+- 💻 **로컬 레포 스캔**: Push 안 한 커밋도 포함하여 로컬 레포지토리 스캔
 - 👥 **다중 사용자 지원**: 여러 사용자의 커밋을 한 번에 수집
 - 🌿 **유연한 브랜치 선택**: 3가지 브랜치 전략 지원 (all/specific/priority)
+- 🔗 **SHA 기반 중복 제거**: 여러 브랜치에 같은 커밋이 있어도 한 번만 출력
 - 📅 **스마트 날짜 범위**: 주말 감지 및 자동 조정 기능
 - 📝 **깔끔한 출력**: 레포지토리별 그룹화 및 메시지 정리
 
@@ -48,7 +51,41 @@ python main.py
 
 ## ⚙️ 설정 옵션
 
-### 브랜치 선택 전략
+### 모드 선택
+
+두 가지 모드 중 하나를 선택할 수 있습니다 (`enabled: true`로 설정):
+
+#### GitHub API 모드
+```yaml
+github:
+  enabled: true
+  token: "your_github_token"
+  organizations: ["your_organization"]
+  usernames: ["user1", "user2"]
+```
+- GitHub 조직의 원격 레포지토리에서 커밋 수집
+- GitHub Personal Access Token 필요
+- Push된 커밋만 수집 가능
+
+#### 로컬 Git 모드 (신규!)
+```yaml
+local_git:
+  enabled: true
+  base_paths:  # 방법 1: 디렉토리 자동 스캔
+    - "/home/user/workspace"
+    - "/home/user/projects"
+  # repositories:  # 방법 2: 특정 레포 직접 지정
+  #   - "/home/user/workspace/project-1"
+  #   - "/home/user/workspace/project-2"
+  usernames: ["user1", "user2"]  # git config user.name과 일치해야 함
+```
+- 로컬 Git 레포지토리에서 직접 커밋 수집
+- **Push 안 한 커밋도 포함** (로컬에만 있는 커밋)
+- **모든 브랜치 자동 스캔** (feat/*, hotfix/* 등)
+- **SHA 기반 중복 제거** (merge 후에도 중복 없음)
+- GitHub 토큰 불필요
+
+### 브랜치 선택 전략 (GitHub 모드 전용)
 
 #### `all` - 모든 브랜치
 ```yaml
@@ -73,15 +110,26 @@ branch_strategy:
 ```
 우선순위 순서로 첫 번째 존재하는 브랜치만 선택 (중복 제거)
 
-### 날짜 범위 설정
+### 날짜 범위 설정 (공통)
 
 ```yaml
 date_range:
   from: ""          # 빈값: 어제부터 (주말이면 금요일부터 선택 가능)
   to: ""            # 빈값: 지금까지
-  # from: "2024-01-01"  # 특정 날짜부터
-  # to: "2024-01-31"    # 특정 날짜까지
+  # from: "2024-01-01"         # 특정 날짜부터
+  # from: "2024-01-01 09:00"   # 날짜 + 시간
+  # from: "07:00"              # 시간만 (어제 07:00부터)
+  # to: "2024-01-31"           # 특정 날짜까지
+  # to: "2024-01-31 18:00"     # 날짜 + 시간까지
+  # to: "07:00"                # 시간만 (오늘 07:00까지)
 ```
+
+**시간 형식 지원**:
+- `YYYY-MM-DD`: 날짜만 지정
+- `YYYY-MM-DD HH:MM`: 날짜와 시간 지정
+- `HH:MM`: 시간만 지정 (from: 어제 HH:MM, to: 오늘 HH:MM)
+
+**예시**: `from: "07:00"`, `to: "07:00"` → 어제 07:00부터 오늘 07:00까지
 
 ## 📄 출력 형식
 
@@ -129,14 +177,20 @@ python main.py --dry-run
 
 ### 일반적인 문제들
 
+**Q: "Configuration error: Either github.enabled or local_git.enabled must be true"**
+A: `config.yaml`에서 `github.enabled: true` 또는 `local_git.enabled: true` 중 하나를 설정하세요.
+
 **Q: "Configuration error: GitHub token is required"**
-A: `config.yaml`에 올바른 GitHub 토큰을 설정했는지 확인하세요.
+A: GitHub 모드 사용 시 `config.yaml`에 올바른 GitHub 토큰을 설정했는지 확인하세요.
 
 **Q: "Error accessing organization"**
 A: 조직에 접근 권한이 있는지, 조직명이 정확한지 확인하세요.
 
 **Q: "No commits found"**
-A: 날짜 범위나 사용자명 설정을 확인하세요.
+A: 날짜 범위나 사용자명 설정을 확인하세요. 로컬 Git 모드에서는 `git config user.name`과 일치하는 이름을 사용하세요.
+
+**Q: "Warning: Not a valid Git repository"**
+A: 로컬 Git 모드에서 지정한 경로에 `.git` 디렉토리가 있는지 확인하세요.
 
 ### 디버깅
 
@@ -151,8 +205,17 @@ python main.py --config test-config.yaml --dry-run
 ## 📋 요구사항
 
 - Python 3.8+
-- GitHub Personal Access Token
-- 인터넷 연결
+- GitHub Personal Access Token (GitHub 모드 사용 시)
+- 인터넷 연결 (GitHub 모드 사용 시)
+
+## 🆕 최근 업데이트
+
+### v2.0 - 로컬 Git 모드 추가
+- ✅ 로컬 Git 레포지토리 직접 스캔 기능
+- ✅ Push 안 한 커밋도 수집 가능
+- ✅ SHA 기반 중복 제거 (merge 후에도 중복 없음)
+- ✅ 모든 브랜치 자동 스캔
+- ✅ 두 가지 경로 지정 방식 (base_paths/repositories)
 
 ## 🤝 기여하기
 

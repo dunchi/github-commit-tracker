@@ -1,4 +1,11 @@
+# ========================================
+# 모드 선택: github 또는 local_git 중 하나만 enabled: true로 설정
+# ========================================
+
 github:
+  # GitHub API 모드 활성화 여부 (true/false)
+  enabled: false
+
   # GitHub Personal Access Token (필수)
   # GitHub → Settings → Developer settings → Personal access tokens → Generate new token
   # 필요한 권한: repo (private repo 접근시), read:org
@@ -8,6 +15,27 @@ github:
   organizations: ["your_organization_name"]
 
   # 커밋 필터링용 사용자명 목록
+  usernames: ["your_username", "teammate1", "teammate2"]
+
+# 로컬 Git 레포지토리 스캔 모드
+local_git:
+  # 로컬 Git 모드 활성화 여부 (true/false)
+  enabled: true
+
+  # 방법 1: 레포지토리들이 있는 디렉토리 지정 (자동 발견)
+  # 해당 디렉토리 내의 모든 Git 레포지토리를 자동으로 스캔
+  base_paths:
+    - "/home/user/workspace"
+    - "/home/user/projects"
+
+  # 방법 2: 특정 레포지토리 경로 직접 지정
+  # base_paths와 repositories 중 하나만 사용하거나, 둘 다 사용 가능
+  # repositories:
+  #   - "/home/user/workspace/project-1"
+  #   - "/home/user/workspace/project-2"
+
+  # 커밋 필터링용 사용자명 목록 (Git author name 기준)
+  # git config user.name으로 설정한 이름과 일치해야 함
   usernames: ["your_username", "teammate1", "teammate2"]
 
 # 브랜치 선택 전략
