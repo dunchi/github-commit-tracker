@@ -41,9 +41,12 @@ class CommitFormatter:
 
         lines = []
 
-        for repo_name, repo_commit_list in repo_commits.items():
+        for idx, (repo_name, repo_commit_list) in enumerate(repo_commits.items()):
+            # Add blank line before repository name (except for first repo)
+            if idx > 0:
+                lines.append("")
+
             lines.append(f"{repo_name}")
-            lines.append("")
 
             for i, commit in enumerate(repo_commit_list, 1):
                 # Parse commit message: first line = title, rest = body
@@ -64,10 +67,8 @@ class CommitFormatter:
                 lines.append(f"- {title}")
 
                 # Add cleaned body items
-                for idx, body_line in enumerate(body_lines, 1):
-                    lines.append(f"{idx}. {body_line}")
-
-                lines.append("")  # Empty line after each commit
+                for body_idx, body_line in enumerate(body_lines, 1):
+                    lines.append(f"{body_idx}. {body_line}")
 
         return "\n".join(lines)
 
@@ -199,7 +200,10 @@ def main():
         formatter = CommitFormatter()
         output = formatter.format_text(commits)
 
-        # Always output to stdout
+        # Print separator and output
+        print("\n" + "=" * 50)
+        print("결과")
+        print("=" * 50 + "\n")
         print(output)
 
     except ConfigError as e:
