@@ -19,7 +19,7 @@ class LocalGitScanner:
         self.seen_shas: Set[str] = set()  # SHA 기반 중복 제거
 
     def scan_repositories(self, base_paths: Optional[List[str]] = None,
-                         repositories: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+                         repositories: Optional[List[str]] = None) -> tuple[List[Dict[str, Any]], List[str], List[str]]:
         """Scan multiple repositories and collect commits
 
         Args:
@@ -27,10 +27,11 @@ class LocalGitScanner:
             repositories: List of specific repository paths
 
         Returns:
-            List of commit data dictionaries
+            Tuple of (list of commit data dictionaries, list of scanned repository paths, list of paths with commits)
         """
         all_commits = []
         repo_paths = []
+        repos_with_commits = []
 
         # Collect repository paths from base_paths
         if base_paths:
@@ -59,10 +60,12 @@ class LocalGitScanner:
         for repo_path in repo_paths:
             print(f"Scanning repository: {repo_path}")
             commits = self.scan_single_repository(repo_path)
+            if commits:  # Only add to repos_with_commits if commits were found
+                repos_with_commits.append(repo_path)
             all_commits.extend(commits)
             print(f"  Found {len(commits)} commits")
 
-        return all_commits
+        return all_commits, repo_paths, repos_with_commits
 
     def _discover_repositories(self, base_path: str) -> List[str]:
         """Discover Git repositories in a base directory

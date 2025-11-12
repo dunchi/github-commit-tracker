@@ -135,6 +135,9 @@ def main():
         print(f"Target usernames: {usernames}")
         print(f"Date range: {date_range}")
 
+        scanned_repo_paths = []  # Store scanned repository paths
+        repos_with_commits = []  # Store paths with actual commits
+
         if mode == 'github':
             # GitHub mode
             github_config = config.get_github_config()
@@ -184,7 +187,7 @@ def main():
 
             # Collect commits
             print("Collecting commits...")
-            commits = scanner.scan_repositories(base_paths=base_paths, repositories=repositories)
+            commits, scanned_repo_paths, repos_with_commits = scanner.scan_repositories(base_paths=base_paths, repositories=repositories)
 
         else:
             raise ConfigError(f"Unknown mode: {mode}")
@@ -204,6 +207,16 @@ def main():
         print("\n" + "=" * 50)
         print("결과")
         print("=" * 50 + "\n")
+        
+        # Print scanned repository paths for local_git mode with colored O/X markers
+        if mode == 'local_git' and scanned_repo_paths:
+            print("스캔한 로컬 레포지토리:")
+            repos_with_commits_set = set(repos_with_commits)
+            for repo_path in sorted(scanned_repo_paths):
+                marker = "✅" if repo_path in repos_with_commits_set else "❌"
+                print(f"  {marker} {repo_path}")
+            print()
+        
         print(output)
 
     except ConfigError as e:
