@@ -62,9 +62,8 @@ class ConfigParser:
         if not github_enabled and not local_git_enabled:
             raise ConfigError("Either github.enabled or local_git.enabled must be true")
 
-        # Only one mode can be enabled
-        if github_enabled and local_git_enabled:
-            raise ConfigError("Only one of github.enabled or local_git.enabled can be true")
+        # Both modes can be enabled for hybrid mode
+        # (removed the check that prevented both from being enabled)
 
         # Validate based on enabled mode
         if github_enabled:
@@ -179,16 +178,18 @@ class ConfigParser:
             raise ConfigError(f"Invalid {field_name} date format: {date_str}. Use YYYY-MM-DD, YYYY-MM-DD HH:MM, or HH:MM format")
 
     def get_mode(self) -> str:
-        """Get current mode ('github' or 'local_git')"""
+        """Get current mode ('github', 'local_git', or 'hybrid')"""
         github_enabled = self.config.get('github', {}).get('enabled', False)
         local_git_enabled = self.config.get('local_git', {}).get('enabled', False)
 
-        if github_enabled:
+        if github_enabled and local_git_enabled:
+            return 'hybrid'
+        elif github_enabled:
             return 'github'
         elif local_git_enabled:
             return 'local_git'
         else:
-            raise ConfigError("No mode enabled")
+            raise ConfigError("Either github.enabled or local_git.enabled must be true")
 
     def get_github_config(self) -> Dict[str, Any]:
         """Get GitHub configuration"""
@@ -204,7 +205,7 @@ class ConfigParser:
         return github_config.get('organizations', [])
 
     def get_usernames(self) -> List[str]:
-        """Get usernames list for filtering (works for both modes)"""
+        """Get usernames list for filtering (works for all modes)"""
         mode = self.get_mode()
         if mode == 'github':
             github_config = self.get_github_config()
@@ -212,6 +213,13 @@ class ConfigParser:
         elif mode == 'local_git':
             local_git_config = self.get_local_git_config()
             return local_git_config.get('usernames', [])
+        elif mode == 'hybrid':
+            # For hybrid mode, combine usernames from both configs
+            github_config = self.get_github_config()
+            local_git_config = self.get_local_git_config()
+            github_users = set(github_config.get('usernames', []))
+            local_users = set(local_git_config.get('usernames', []))
+            return list(github_users | local_users)  # Union of both sets
         else:
             return []
 

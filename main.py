@@ -110,6 +110,48 @@ def sort_commits(commits: List[Dict[str, Any]], sort_order: str) -> List[Dict[st
     return sorted(commits, key=lambda x: x['date'], reverse=reverse)
 
 
+def deduplicate_commits_by_sha(commits: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """SHA 기반으로 중복 커밋 제거
+    
+    동일 SHA는 1개만 유지:
+    - 로컬과 GitHub에 같은 SHA가 있으면 로컬 우선
+      (로컬이 더 상세한 정보를 가질 수 있음)
+    - 같은 소스에서 중복되면 첫 번째만 유지
+    
+    Args:
+        commits: GitHub + 로컬에서 수집한 전체 커밋 리스트
+    
+    Returns:
+        SHA 중복이 제거된 커밋 리스트
+    """
+    seen_shas = {}
+    result = []
+    
+    for commit in commits:
+        sha = commit['sha']
+        
+        if sha not in seen_shas:
+            # 처음 보는 SHA
+            seen_shas[sha] = commit
+            result.append(commit)
+        else:
+            # 이미 존재하는 SHA
+            existing = seen_shas[sha]
+            
+            # 로컬 > GitHub 우선순위
+            current_source = commit.get('source', 'github')
+            existing_source = existing.get('source', 'github')
+            
+            if current_source == 'local' and existing_source == 'github':
+                # GitHub 것을 로컬 것으로 교체
+                result.remove(existing)
+                result.append(commit)
+                seen_shas[sha] = commit
+            # else: 이미 로컬이거나, 같은 소스면 첫 번째 유지
+    
+    return result
+
+
 def main():
     """Main function"""
     parser = argparse.ArgumentParser(description='GitHub Commit Tracker')
@@ -189,6 +231,58 @@ def main():
             print("Collecting commits...")
             commits, scanned_repo_paths, repos_with_commits = scanner.scan_repositories(base_paths=base_paths, repositories=repositories)
 
+        elif mode == 'hybrid':
+            # Hybrid mode: GitHub + Local Git
+            github_config = config.get_github_config()
+            organizations = config.get_organizations()
+            branch_strategy = config.get_branch_strategy()
+
+            local_git_config = config.get_local_git_config()
+            base_paths = local_git_config.get('base_paths', [])
+            repositories = local_git_config.get('repositories', [])
+
+            print(f"Target organizations: {organizations}")
+            print(f"Branch strategy: {branch_strategy}")
+            print(f"Base paths: {base_paths}")
+            print(f"Repositories: {repositories}")
+
+            if args.dry_run:
+                print("Dry run mode - configuration validation complete.")
+                return
+
+            # Collect from GitHub
+            print("Connecting to GitHub API...")
+            github_client = create_github_client(
+                token=github_config['token'],
+                usernames=usernames,
+                from_date=date_range['from'],
+                to_date=date_range['to']
+            )
+            print("Collecting commits from GitHub...")
+            github_commits = github_client.get_commits_from_organizations(organizations, branch_strategy)
+
+            # Collect from local repositories
+            print("Scanning local repositories...")
+            scanner = create_local_git_scanner(
+                usernames=usernames,
+                from_date=date_range['from'],
+                to_date=date_range['to']
+            )
+            print("Collecting commits from local...")
+            local_commits, scanned_repo_paths, repos_with_commits = scanner.scan_repositories(base_paths=base_paths, repositories=repositories)
+
+            # Merge and deduplicate
+            print("Merging and deduplicating commits...")
+            all_commits = github_commits + local_commits
+            commits = deduplicate_commits_by_sha(all_commits)
+
+            # Print statistics
+            github_count = sum(1 for c in commits if c.get('source') == 'github')
+            local_count = sum(1 for c in commits if c.get('source') == 'local')
+            print(f"GitHub 커밋: {github_count}개")
+            print(f"로컬 커밋: {local_count}개")
+            print(f"총 커밋: {len(commits)}개 (중복 제거 완료)")
+
         else:
             raise ConfigError(f"Unknown mode: {mode}")
 
@@ -196,8 +290,8 @@ def main():
             print("No commits found matching the criteria.")
             return
 
-        # Sort commits (always ascending by date)
-        commits = sort_commits(commits, 'asc')
+        # Sort commits (always descending by date - newest first)
+        commits = sort_commits(commits, 'desc')
 
         # Format output (always text format)
         formatter = CommitFormatter()
@@ -208,8 +302,8 @@ def main():
         print("결과")
         print("=" * 50 + "\n")
         
-        # Print scanned repository paths for local_git mode with colored O/X markers
-        if mode == 'local_git' and scanned_repo_paths:
+        # Print scanned repository paths for local_git and hybrid mode with colored O/X markers
+        if mode in ['local_git', 'hybrid'] and scanned_repo_paths:
             print("스캔한 로컬 레포지토리:")
             repos_with_commits_set = set(repos_with_commits)
             for repo_path in sorted(scanned_repo_paths):

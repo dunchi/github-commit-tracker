@@ -2,7 +2,7 @@
 GitHub API client for commit tracking
 """
 import fnmatch
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Optional, Iterator
 from github import Github, Repository, PaginatedList
 from github.Commit import Commit
@@ -150,16 +150,21 @@ class GitHubCommitTracker:
         return False
 
     def _parse_date(self, date_str: str) -> datetime:
-        """Parse date string to datetime object (YYYY-MM-DD or YYYY-MM-DD HH:MM)"""
+        """Parse date string to datetime object with KST timezone (YYYY-MM-DD or YYYY-MM-DD HH:MM)"""
+        # KST timezone (UTC+9)
+        kst = timezone(timedelta(hours=9))
+        
         # Try YYYY-MM-DD HH:MM format first
         try:
-            return datetime.strptime(date_str, '%Y-%m-%d %H:%M')
+            naive_dt = datetime.strptime(date_str, '%Y-%m-%d %H:%M')
+            return naive_dt.replace(tzinfo=kst)
         except ValueError:
             pass
 
         # Try YYYY-MM-DD format
         try:
-            return datetime.strptime(date_str, '%Y-%m-%d')
+            naive_dt = datetime.strptime(date_str, '%Y-%m-%d')
+            return naive_dt.replace(tzinfo=kst)
         except ValueError:
             raise ValueError(f"Invalid date format: {date_str}. Use YYYY-MM-DD or YYYY-MM-DD HH:MM format")
 
@@ -178,14 +183,27 @@ class GitHubCommitTracker:
 
     def _extract_commit_data(self, commit: Commit, repo_name: str, branch_name: str) -> Dict[str, Any]:
         """Extract relevant data from a commit object"""
+        # KST timezone (UTC+9)
+        kst = timezone(timedelta(hours=9))
+        
+        # Convert GitHub's UTC datetime to KST
+        commit_date = commit.commit.author.date if commit.commit.author else datetime.now(kst)
+        if commit_date.tzinfo is not None:
+            # Convert to KST if it has timezone info
+            commit_date = commit_date.astimezone(kst)
+        else:
+            # If naive, assume it's already KST
+            commit_date = commit_date.replace(tzinfo=kst)
+        
         return {
             'sha': commit.sha,
+            'source': 'github',
             'repository': repo_name,
             'branch': branch_name,
             'message': commit.commit.message.strip(),
             'author_name': commit.commit.author.name if commit.commit.author else 'Unknown',
             'author_email': commit.commit.author.email if commit.commit.author else 'Unknown',
-            'date': commit.commit.author.date if commit.commit.author else datetime.now(),
+            'date': commit_date,
             'url': commit.html_url
         }
 

@@ -2,7 +2,7 @@
 Local Git repository scanner for commit tracking
 """
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Optional, Set
 from pathlib import Path
 import git
@@ -163,7 +163,9 @@ class LocalGitScanner:
                     continue
 
                 # Check date range
-                commit_date = datetime.fromtimestamp(commit.authored_date)
+                # Convert to KST timezone for comparison
+                kst = timezone(timedelta(hours=9))
+                commit_date = datetime.fromtimestamp(commit.authored_date, tz=kst)
                 if self.from_date and commit_date < self.from_date:
                     continue
                 if self.to_date and commit_date > self.to_date:
@@ -213,10 +215,13 @@ class LocalGitScanner:
         Returns:
             Commit data dictionary
         """
-        commit_date = datetime.fromtimestamp(commit.authored_date)
+        # Convert to KST timezone
+        kst = timezone(timedelta(hours=9))
+        commit_date = datetime.fromtimestamp(commit.authored_date, tz=kst)
 
         return {
             'sha': commit.hexsha,
+            'source': 'local',
             'repository': repo_name,
             'branch': branch_name,
             'message': commit.message.strip(),
@@ -239,18 +244,23 @@ def create_local_git_scanner(usernames: List[str], from_date: Optional[str] = No
     Returns:
         LocalGitScanner instance
     """
+    # KST timezone (UTC+9)
+    kst = timezone(timedelta(hours=9))
+    
     # Parse dates if provided (assuming they're already datetime objects or None)
     from_datetime = None
     to_datetime = None
 
     if from_date:
         if isinstance(from_date, str):
-            # Parse string to datetime
+            # Parse string to datetime with KST timezone
             try:
-                from_datetime = datetime.strptime(from_date, '%Y-%m-%d %H:%M')
+                naive_dt = datetime.strptime(from_date, '%Y-%m-%d %H:%M')
+                from_datetime = naive_dt.replace(tzinfo=kst)
             except ValueError:
                 try:
-                    from_datetime = datetime.strptime(from_date, '%Y-%m-%d')
+                    naive_dt = datetime.strptime(from_date, '%Y-%m-%d')
+                    from_datetime = naive_dt.replace(tzinfo=kst)
                 except ValueError:
                     print(f"Warning: Invalid from_date format: {from_date}")
         elif isinstance(from_date, datetime):
@@ -258,12 +268,14 @@ def create_local_git_scanner(usernames: List[str], from_date: Optional[str] = No
 
     if to_date:
         if isinstance(to_date, str):
-            # Parse string to datetime
+            # Parse string to datetime with KST timezone
             try:
-                to_datetime = datetime.strptime(to_date, '%Y-%m-%d %H:%M')
+                naive_dt = datetime.strptime(to_date, '%Y-%m-%d %H:%M')
+                to_datetime = naive_dt.replace(tzinfo=kst)
             except ValueError:
                 try:
-                    to_datetime = datetime.strptime(to_date, '%Y-%m-%d')
+                    naive_dt = datetime.strptime(to_date, '%Y-%m-%d')
+                    to_datetime = naive_dt.replace(tzinfo=kst)
                 except ValueError:
                     print(f"Warning: Invalid to_date format: {to_date}")
         elif isinstance(to_date, datetime):
