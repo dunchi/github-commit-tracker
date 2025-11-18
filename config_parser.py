@@ -74,8 +74,19 @@ class ConfigParser:
 
     def _validate_github_config(self, github_config: Dict[str, Any]):
         """Validate GitHub configuration"""
-        if not github_config.get('token'):
+        token = github_config.get('token')
+        if not token:
             raise ConfigError("GitHub token is required when github.enabled is true")
+
+        # Check if token is still a placeholder (environment variable not expanded)
+        if token.startswith('${') and token.endswith('}'):
+            var_name = token[2:-1]
+            raise ConfigError(
+                f"Environment variable '{var_name}' is not set.\n"
+                f"Please set it before running:\n"
+                f"  export {var_name}=\"your_github_token_here\"\n"
+                f"Or add it to your shell profile (~/.bashrc, ~/.zshrc, etc.)"
+            )
 
         if not github_config.get('organizations'):
             raise ConfigError("At least one organization must be specified")

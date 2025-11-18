@@ -25,20 +25,31 @@ cd github-commit-tracker
 pip install -r requirements.txt
 ```
 
-### 2. 설정
-```bash
-# 설정 파일 복사
-cp config.yaml.example config.yaml
-
-# 설정 파일 편집
-nano config.yaml
-```
-
-### 3. GitHub 토큰 설정
+### 2. GitHub 토큰 설정
 1. GitHub → Settings → Developer settings → Personal access tokens
 2. "Generate new token" 클릭
 3. 필요한 권한 선택: `repo`, `read:org`
-4. 생성된 토큰을 `config.yaml`의 `token`에 입력
+4. **환경변수로 토큰 설정** (필수):
+   ```bash
+   export GITHUB_TOKEN="your_github_token_here"
+   ```
+
+   **영구적으로 설정하려면** shell profile에 추가:
+   ```bash
+   # ~/.bashrc 또는 ~/.zshrc에 추가
+   echo 'export GITHUB_TOKEN="your_github_token_here"' >> ~/.bashrc
+   source ~/.bashrc
+   ```
+
+### 3. 설정 파일 편집
+```bash
+# config.yaml 파일 편집 (저장소에 이미 포함됨)
+nano config.yaml
+```
+- `organizations`: 수집할 GitHub 조직명
+- `usernames`: 필터링할 사용자 이름들
+- `branch_strategy`: 브랜치 수집 전략
+- `local_git`: 로컬 Git 레포지토리 경로 (선택사항)
 
 ### 4. 실행
 ```bash
@@ -47,6 +58,14 @@ python main.py --dry-run
 
 # 실제 실행
 python main.py
+```
+
+**⚠️ 주의**: `GITHUB_TOKEN` 환경변수가 설정되지 않으면 다음과 같은 에러가 발생합니다:
+```
+Environment variable 'GITHUB_TOKEN' is not set.
+Please set it before running:
+  export GITHUB_TOKEN="your_github_token_here"
+Or add it to your shell profile (~/.bashrc, ~/.zshrc, etc.)
 ```
 
 ## ⚙️ 설정 옵션
@@ -59,12 +78,12 @@ python main.py
 ```yaml
 github:
   enabled: true
-  token: "your_github_token"
+  token: "${GITHUB_TOKEN}"  # 환경변수 사용
   organizations: ["your_organization"]
   usernames: ["user1", "user2"]
 ```
 - GitHub 조직의 원격 레포지토리에서 커밋 수집
-- GitHub Personal Access Token 필요
+- GitHub Personal Access Token 필요 (환경변수로 설정)
 - Push된 커밋만 수집 가능
 
 #### 로컬 Git 모드 (신규!)
@@ -152,14 +171,30 @@ refactor: 코드 리팩토링 (#125)
 
 ## 🔧 고급 사용법
 
-### 환경변수 사용
-```bash
-# 토큰을 환경변수로 설정
-export GITHUB_TOKEN="your_token_here"
+### 다른 PC에서 사용하기
 
-# config.yaml에서 환경변수 참조
-token: "${GITHUB_TOKEN}"
-```
+1. **저장소 클론**:
+   ```bash
+   git clone <repository-url>
+   cd github-commit-tracker
+   pip install -r requirements.txt
+   ```
+
+2. **GitHub 토큰 설정** (한 번만):
+   ```bash
+   export GITHUB_TOKEN="your_github_token_here"
+
+   # 영구 설정
+   echo 'export GITHUB_TOKEN="your_github_token_here"' >> ~/.bashrc
+   source ~/.bashrc
+   ```
+
+3. **바로 실행**:
+   ```bash
+   python main.py
+   ```
+
+`config.yaml` 파일은 이미 저장소에 포함되어 있으며, 토큰은 환경변수로 참조합니다.
 
 ### 스케줄링 (cron)
 ```bash
@@ -180,8 +215,11 @@ python main.py --dry-run
 **Q: "Configuration error: Either github.enabled or local_git.enabled must be true"**
 A: `config.yaml`에서 `github.enabled: true` 또는 `local_git.enabled: true` 중 하나를 설정하세요.
 
-**Q: "Configuration error: GitHub token is required"**
-A: GitHub 모드 사용 시 `config.yaml`에 올바른 GitHub 토큰을 설정했는지 확인하세요.
+**Q: "Configuration error: GitHub token is required" 또는 "Environment variable 'GITHUB_TOKEN' is not set"**
+A: `GITHUB_TOKEN` 환경변수를 설정하세요:
+```bash
+export GITHUB_TOKEN="your_github_token_here"
+```
 
 **Q: "Error accessing organization"**
 A: 조직에 접근 권한이 있는지, 조직명이 정확한지 확인하세요.
