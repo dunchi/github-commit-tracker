@@ -88,3 +88,6 @@ output/
 # Logs
 *.log
 logs/
+
+# MCP Server metadata
+.serena/
