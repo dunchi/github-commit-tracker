@@ -13,7 +13,7 @@
         branches: ["dev"]
       "nicemso/biseo-client":
         mode: "specific"
-        branches: ["main"]
+        branches: ["feat/540"]
 
   local_git:
     enabled: true
