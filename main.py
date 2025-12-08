@@ -14,6 +14,7 @@ from typing import List, Dict, Any
 from config_parser import load_config, ConfigError
 from github_client import create_github_client
 from local_git_client import create_local_git_scanner
+from local_log_client import create_local_log_reader
 
 
 class CommitFormatter:
@@ -180,7 +181,30 @@ def main():
         scanned_repo_paths = []  # Store scanned repository paths
         repos_with_commits = []  # Store paths with actual commits
 
-        if mode == 'github':
+        if mode == 'local_log':
+            # Local log mode (reads from ~/.git-commit-logs/)
+            local_log_config = config.get_local_log_config()
+            log_dir = local_log_config.get('log_dir', '~/.git-commit-logs')
+
+            print(f"Log directory: {log_dir}")
+
+            if args.dry_run:
+                print("Dry run mode - configuration validation complete.")
+                return
+
+            # Create local log reader
+            print("Reading local commit logs...")
+            reader = create_local_log_reader(
+                log_dir=log_dir,
+                from_date=date_range['from'],
+                to_date=date_range['to']
+            )
+
+            # Collect commits
+            commits = reader.read_commits()
+            print(f"Found {len(commits)} commits from local logs")
+
+        elif mode == 'github':
             # GitHub mode
             github_config = config.get_github_config()
             organizations = config.get_organizations()

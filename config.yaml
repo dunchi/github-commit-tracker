@@ -1,33 +1,41 @@
-  github:
-    enabled: true
-    token: "${GITHUB_TOKEN}"  # 환경변수 사용: export GITHUB_TOKEN="your_token_here"
-    organizations: ["nicemso"]
-    usernames: ["dunchi", "hanju", "kimhanju", "hanjukim"]
+# 로컬 로그 모드 (기본값) - ~/.git-commit-logs/ 에서 읽음
+local_log:
+  enabled: true
+  log_dir: "~/.git-commit-logs"
 
-  branch_strategy:
-    mode: "priority"
-    branches: ["main", "dev"]
-    overrides:
-      "nicemso/biseo-server-attendance":
-        mode: "specific"
-        branches: ["dev"]
-      "nicemso/biseo-client":
-        mode: "specific"
-        branches: ["feat/540"]
+# GitHub API 모드
+github:
+  enabled: false
+  token: "${GITHUB_TOKEN}"  # 환경변수 사용: export GITHUB_TOKEN="your_token_here"
+  organizations: ["nicemso"]
+  usernames: ["dunchi", "hanju", "kimhanju", "hanjukim"]
 
-  local_git:
-    enabled: true
-    # 방법 1: 레포들이 있는 디렉토리 지정 (자동 발견)
-    base_paths:
-      - "/home/hanju/01dev/01nicemso/biseo"
-      - "/home/hanju/01dev/01nicemso/scraping"
-      - "/home/hanju/01dev/99memo"
-    # 방법 2: 특정 레포 직접 지정 (선택사항)
-    repositories:
-      - "/home/hanju/01dev/01nicemso/tools"
-    usernames: ["dunchi", "hanju", "kimhanju", "hanjukim"]
+# 브랜치 전략 (GitHub 모드 전용)
+branch_strategy:
+  mode: "priority"
+  branches: ["main", "dev"]
+  overrides:
+    "nicemso/biseo-server-attendance":
+      mode: "specific"
+      branches: ["dev"]
+    "nicemso/biseo-client":
+      mode: "specific"
+      branches: ["feat/540"]
 
-  # 날짜 범위 (공통) YYYY-MM-DD HH:MM
-  date_range:
-    from: "07:00"
-    to: "07:00"
+# 로컬 Git 모드
+local_git:
+  enabled: false
+  # 방법 1: 레포들이 있는 디렉토리 지정 (자동 발견)
+  base_paths:
+    - "/home/hanju/01dev/01nicemso/biseo"
+    - "/home/hanju/01dev/01nicemso/scraping"
+    - "/home/hanju/01dev/99memo"
+  # 방법 2: 특정 레포 직접 지정 (선택사항)
+  repositories:
+    - "/home/hanju/01dev/01nicemso/tools"
+  usernames: ["dunchi", "hanju", "kimhanju", "hanjukim"]
+
+# 날짜 범위 (공통) YYYY-MM-DD HH:MM
+date_range:
+  from: "07:00"
+  to: "07:00"

@@ -4,7 +4,7 @@ GitHub 조직 또는 로컬 Git 레포지토리에서 커밋들을 수집하여 
 
 ## ✨ 주요 기능
 
-- 🔄 **두 가지 모드**: GitHub API 또는 로컬 Git 레포지토리 스캔
+- 🔄 **세 가지 모드**: 로컬 로그 파일 / GitHub API / 로컬 Git 레포지토리 스캔
 - 🏢 **조직 단위 수집**: GitHub 조직의 모든 레포지토리를 자동 스캔
 - 💻 **로컬 레포 스캔**: Push 안 한 커밋도 포함하여 로컬 레포지토리 스캔
 - 👥 **다중 사용자 지원**: 여러 사용자의 커밋을 한 번에 수집
@@ -72,7 +72,18 @@ Or add it to your shell profile (~/.bashrc, ~/.zshrc, etc.)
 
 ### 모드 선택
 
-두 가지 모드 중 하나를 선택할 수 있습니다 (`enabled: true`로 설정):
+세 가지 모드 중 하나를 선택할 수 있습니다 (`enabled: true`로 설정):
+
+#### 로컬 로그 모드 (기본값, 추천!)
+```yaml
+local_log:
+  enabled: true
+  log_dir: "~/.git-commit-logs"
+```
+- **Git Hook으로 자동 기록된 커밋 로그**를 읽어서 표시
+- GitHub 토큰 불필요
+- 가장 빠르고 간편한 방식
+- 아래 "로컬 로그 설정" 섹션 참조
 
 #### GitHub API 모드
 ```yaml
@@ -246,7 +257,95 @@ python main.py --config test-config.yaml --dry-run
 - GitHub Personal Access Token (GitHub 모드 사용 시)
 - 인터넷 연결 (GitHub 모드 사용 시)
 
+## 📝 로컬 로그 설정 (Git Hook)
+
+로컬 로그 모드를 사용하려면 Git Hook을 설정하여 커밋할 때마다 자동으로 로그를 기록해야 합니다.
+
+### 1. 전역 Git Hook 설정
+
+```bash
+# 전역 hooks 디렉토리 생성
+mkdir -p ~/.git-hooks
+
+# 전역 설정
+git config --global core.hooksPath ~/.git-hooks
+
+# post-commit hook 생성
+cat > ~/.git-hooks/post-commit << 'EOF'
+#!/bin/bash
+LOG_DIR="$HOME/.git-commit-logs"
+mkdir -p "$LOG_DIR"
+
+DATE=$(date +%Y-%m-%d)
+TIME=$(date +%H:%M:%S)
+REPO=$(basename "$(git rev-parse --show-toplevel)")
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+MESSAGE=$(git log -1 --format='%s')
+HASH=$(git log -1 --format='%h')
+
+echo "[$TIME] $REPO ($BRANCH) $HASH - $MESSAGE" >> "$LOG_DIR/$DATE.log"
+EOF
+
+# 실행 권한 부여
+chmod +x ~/.git-hooks/post-commit
+
+# 로그 디렉토리 생성
+mkdir -p ~/.git-commit-logs
+```
+
+### 2. 로그 파일 형식
+
+로그 파일은 `~/.git-commit-logs/YYYY-MM-DD.log` 형식으로 저장됩니다.
+
+**파일명**: `2025-12-08.log` (날짜별)
+
+**각 줄 형식**:
+```
+[HH:MM:SS] repo_name (branch) short_sha - commit_message
+```
+
+**예시** (`~/.git-commit-logs/2025-12-08.log`):
+```
+[09:23:15] my-project (feature/login) a1b2c3d - feat(auth): 로그인 기능 추가
+[11:45:32] api-server (main) d4e5f6g - fix(user): 사용자 조회 버그 수정
+[14:20:08] my-project (feature/login) h7i8j9k - refactor(auth): 토큰 검증 로직 개선
+```
+
+### 3. 로그 조회
+
+```bash
+# 오늘 커밋 보기
+cat ~/.git-commit-logs/$(date +%Y-%m-%d).log
+
+# 특정 날짜 보기
+cat ~/.git-commit-logs/2025-12-08.log
+
+# 최근 7일 전체 보기
+tail -n 100 ~/.git-commit-logs/*.log
+```
+
+### 4. 파싱 규칙
+
+이 프로그램은 다음 정규식으로 로그를 파싱합니다:
+```
+\[(\d{2}:\d{2}:\d{2})\]\s+(\S+)\s+\(([^)]+)\)\s+(\w+)\s+-\s+(.+)
+```
+
+| 부분 | 설명 | 예시 |
+|------|------|------|
+| `[HH:MM:SS]` | 시간 (대괄호 필수) | `[09:23:15]` |
+| `repo_name` | 레포지토리 이름 (공백 없음) | `my-project` |
+| `(branch)` | 브랜치명 (괄호 필수) | `(feature/login)` |
+| `short_sha` | 커밋 SHA (7자 이상) | `a1b2c3d` |
+| `-` | 구분자 (하이픈, 앞뒤 공백) | ` - ` |
+| `message` | 커밋 메시지 | `feat(auth): 로그인 기능 추가` |
+
 ## 🆕 최근 업데이트
+
+### v3.0 - 로컬 로그 모드 추가
+- ✅ Git Hook 기반 로컬 로그 파일 읽기 모드
+- ✅ 기본 모드로 설정 (가장 빠르고 간편)
+- ✅ 날짜별 로그 파일 자동 파싱
 
 ### v2.0 - 로컬 Git 모드 추가
 - ✅ 로컬 Git 레포지토리 직접 스캔 기능

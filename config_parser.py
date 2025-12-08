@@ -54,13 +54,15 @@ class ConfigParser:
         # Check which mode is enabled
         github_config = self.config.get('github', {})
         local_git_config = self.config.get('local_git', {})
+        local_log_config = self.config.get('local_log', {})
 
         github_enabled = github_config.get('enabled', False)
         local_git_enabled = local_git_config.get('enabled', False)
+        local_log_enabled = local_log_config.get('enabled', False)
 
         # At least one mode must be enabled
-        if not github_enabled and not local_git_enabled:
-            raise ConfigError("Either github.enabled or local_git.enabled must be true")
+        if not github_enabled and not local_git_enabled and not local_log_enabled:
+            raise ConfigError("At least one of github.enabled, local_git.enabled, or local_log.enabled must be true")
 
         # Both modes can be enabled for hybrid mode
         # (removed the check that prevented both from being enabled)
@@ -71,6 +73,9 @@ class ConfigParser:
 
         if local_git_enabled:
             self._validate_local_git_config(local_git_config)
+
+        if local_log_enabled:
+            self._validate_local_log_config(local_log_config)
 
     def _validate_github_config(self, github_config: Dict[str, Any]):
         """Validate GitHub configuration"""
@@ -127,6 +132,12 @@ class ConfigParser:
         usernames = local_git_config.get('usernames', [])
         if not usernames or not isinstance(usernames, list):
             raise ConfigError("At least one username must be specified in local_git.usernames array")
+
+    def _validate_local_log_config(self, local_log_config: Dict[str, Any]):
+        """Validate local log configuration"""
+        log_dir = local_log_config.get('log_dir', '~/.git-commit-logs')
+        if not isinstance(log_dir, str):
+            raise ConfigError("local_log.log_dir must be a string")
 
     def _validate_branch_strategy(self):
         """Validate branch_strategy section (GitHub mode only)"""
@@ -189,18 +200,22 @@ class ConfigParser:
             raise ConfigError(f"Invalid {field_name} date format: {date_str}. Use YYYY-MM-DD, YYYY-MM-DD HH:MM, or HH:MM format")
 
     def get_mode(self) -> str:
-        """Get current mode ('github', 'local_git', or 'hybrid')"""
+        """Get current mode ('github', 'local_git', 'local_log', or 'hybrid')"""
         github_enabled = self.config.get('github', {}).get('enabled', False)
         local_git_enabled = self.config.get('local_git', {}).get('enabled', False)
+        local_log_enabled = self.config.get('local_log', {}).get('enabled', False)
 
-        if github_enabled and local_git_enabled:
+        # local_log is standalone mode (cannot be combined with others)
+        if local_log_enabled:
+            return 'local_log'
+        elif github_enabled and local_git_enabled:
             return 'hybrid'
         elif github_enabled:
             return 'github'
         elif local_git_enabled:
             return 'local_git'
         else:
-            raise ConfigError("Either github.enabled or local_git.enabled must be true")
+            raise ConfigError("At least one of github.enabled, local_git.enabled, or local_log.enabled must be true")
 
     def get_github_config(self) -> Dict[str, Any]:
         """Get GitHub configuration"""
@@ -209,6 +224,10 @@ class ConfigParser:
     def get_local_git_config(self) -> Dict[str, Any]:
         """Get local Git configuration"""
         return self.config.get('local_git', {})
+
+    def get_local_log_config(self) -> Dict[str, Any]:
+        """Get local log configuration"""
+        return self.config.get('local_log', {})
 
     def get_organizations(self) -> List[str]:
         """Get organizations list"""
