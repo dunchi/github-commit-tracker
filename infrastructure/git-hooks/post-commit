@@ -1,0 +1,12 @@
+#!/bin/bash
+LOG_DIR="$HOME/.git-commit-logs"
+mkdir -p "$LOG_DIR"
+
+DATE=$(date +%Y-%m-%d)
+TIME=$(date +%H:%M:%S)
+REPO=$(basename "$(git rev-parse --show-toplevel)")
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+MESSAGE=$(git log -1 --format='%s')
+HASH=$(git log -1 --format='%h')
+
+echo "[$TIME] $REPO ($BRANCH) $HASH - $MESSAGE" >> "$LOG_DIR/$DATE.log"
