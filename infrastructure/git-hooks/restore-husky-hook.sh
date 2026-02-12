@@ -14,21 +14,14 @@ restore_husky_hook() {
     # .husky 디렉토리가 없으면 husky 프로젝트 아님
     [[ ! -d "$husky_dir" ]] && return 0
 
-    # .husky/post-commit이 이미 있으면 스킵
-    [[ -f "$post_commit" ]] && return 0
-
-    # .husky/post-commit 생성
+    # .husky/post-commit 덮어쓰기 (항상 최신 상태 보장)
     echo "$GLOBAL_POST_COMMIT" > "$post_commit"
     chmod +x "$post_commit"
 
     # .git/info/exclude에 추가 (중복 방지)
-    if [[ -f "$git_exclude" ]]; then
-        if ! grep -q "^.husky/post-commit$" "$git_exclude" 2>/dev/null; then
-            echo ".husky/post-commit" >> "$git_exclude"
-        fi
+    if [[ -f "$git_exclude" ]] && ! grep -q "^.husky/post-commit$" "$git_exclude" 2>/dev/null; then
+        echo ".husky/post-commit" >> "$git_exclude"
     fi
-
-    echo "[restore-husky-hook] 생성됨: $post_commit"
 }
 
 # 현재 디렉토리가 husky 프로젝트면 복구 (pnpm install 후 호출용)
