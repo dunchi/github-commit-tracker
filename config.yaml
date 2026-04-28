@@ -37,5 +37,5 @@ local_git:
 
 # 날짜 범위 (공통) YYYY-MM-DD HH:MM
 date_range:
-  from: "07:00"
-  to: "07:00"
+  from: "09:30"
+  to: "09:30"
