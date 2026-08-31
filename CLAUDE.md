@@ -75,3 +75,59 @@ YYYY년 M월 D일 퇴근HH:MM 시간HH:MM (지각정보)
 4. 사용자에게 "CLAUDE.md를 업데이트했습니다" 알림
 
 **목적**: 다음 대화 세션에서도 동일한 규칙을 적용할 수 있도록 지식 유지
+
+---
+
+## 커밋 조회 모드 (사용자가 "언제 무슨 커밋 했지?" 라고 물을 때)
+
+### 데이터 소스
+커밋 기록은 **`~/.git-commit-logs/YYYY-MM-DD.log`** 평문 파일에 날짜별로 저장되어 있다.
+post-commit git hook이 커밋할 때마다 자동 기록한다 (`infrastructure/git-hooks/post-commit`).
+
+**라인 포맷**: `[HH:MM:SS] repo_name (branch) short_sha - commit_message`
+
+```
+[09:23:15] my-project (feature/login) a1b2c3d - feat(auth): 로그인 기능 추가
+```
+
+**로그 커버리지 시작일: 2025-12-08**. 그 이전 커밋은 로그가 없다.
+
+### ⚠️ main.py 를 실행하지 마라
+`main.py`는 날짜 범위를 `config.yaml`의 `date_range`에서만 읽는다 (CLI `--from/--to` 없음).
+임의 날짜 조회를 하려면 매번 config.yaml을 수정해야 하므로 **조회 질문에는 쓰지 않는다.**
+로그 파일을 `cat`/`grep`으로 직접 읽는 것이 정답이다.
+(`main.py`는 "어제~오늘 일일 리포트를 뽑아줘" 같이 사용자가 명시적으로 프로그램 실행을 요청할 때만 사용)
+
+### 질문 유형별 명령어
+
+| 질문 예시 | 명령어 |
+|-----------|--------|
+| "오늘/어제 뭐 커밋했지?" | `cat ~/.git-commit-logs/$(date +%Y-%m-%d).log` |
+| "8월 30일에 뭐 했지?" | `cat ~/.git-commit-logs/2026-08-30.log` |
+| "8월 첫째주 뭐 했지?" | `cat ~/.git-commit-logs/2026-08-0{1..7}.log` |
+| "8월에 뭐 했지?" | `cat ~/.git-commit-logs/2026-08-*.log` |
+| "로그인 기능 언제 작업했지?" | `grep -in "로그인" ~/.git-commit-logs/*.log` |
+| "biseo-client 언제 만졌지?" | `grep -n " biseo-client " ~/.git-commit-logs/*.log` |
+| "최근에 뭐 했지?" | `ls ~/.git-commit-logs/ \| tail -5` 로 최근 날짜 확인 후 해당 파일들 cat |
+| "이 브랜치에서 뭐 했지?" | `grep -n "(feat/540)" ~/.git-commit-logs/*.log` |
+
+**주의**: `grep *.log` 결과는 `파일경로:라인` 형식이므로 파일명에서 날짜를 읽어야 한다.
+
+### 답변 형식
+날짜 → 레포별 그룹 → 시간과 메시지 순으로 정리한다. 원본 로그 줄을 그대로 덤프하지 마라.
+
+```
+2026년 8월 30일 (총 5커밋)
+
+github-commit-tracker
+- 09:12 fix(config): date_range 기본 시간을 09:30으로 수정
+- 10:45 feat(infrastructure): Husky 커밋 추적 자동 복구 인프라 추가
+
+biseo-client
+- 14:20 feat(company): 회사 생성 기능 추가
+```
+
+- 커밋이 없는 날: "해당 날짜에는 기록된 커밋이 없습니다" (로그 파일 자체가 없으면 그날 커밋을 안 한 것)
+- **2025-12-08 이전 날짜**: "로컬 커밋 로그는 2025-12-08부터 기록되어 있어 해당 기간 데이터가 없습니다"라고 솔직히 답하고,
+  필요하면 특정 레포에서 `git log --author` 로 직접 조회하겠다고 제안한다 (임의로 실행하지 말 것)
+- 사용자가 "정리해줘", "요약해줘" 라고 하면 커밋 메시지의 `type(scope):` 접두사를 떼고 내용 위주로 묶어서 정리
